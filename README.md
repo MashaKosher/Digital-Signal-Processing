@@ -1,1 +1,1 @@
-# Digital-Signal-Processing
+# Лабораторная работа: Генерация сигналов (Python)
