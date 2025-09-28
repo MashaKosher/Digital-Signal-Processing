@@ -80,8 +80,8 @@ def generate_sawtooth(
 ) -> List[float]:
     """Генерация пилообразного сигнала (линейный спад -> скачок)."""
     num_samples, amp = _validate_common_params(duration, rate, amplitude)
-    if freq < 0:
-        raise ValueError("frequency_hz должно быть >= 0")
+    # if freq < 0:
+    #     raise ValueError("frequency_hz должно быть >= 0")
         
     samples: List[float] = []
     for n in range(num_samples):
