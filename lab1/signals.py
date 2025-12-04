@@ -244,3 +244,70 @@ def generate_fm(
         phase_cyc += inst_freq * inv_rate  # Δфаза в циклах
         samples[n] = _wave_value_from_phase(wave_type, phase_cyc, amp, carrier_duty)
     return samples
+
+
+# ----------------------- Эффекты -----------------------
+
+def apply_echo(
+    samples: List[float],
+    delay_seconds: float,
+    decay: float = 0.5,
+    rate: int = 44100,
+    num_echoes: int = 3,
+) -> List[float]:
+    """Добавляет эффект эха к сигналу.
+
+    Args:
+        samples: входной сигнал
+        delay_seconds: задержка между эхом в секундах
+        decay: коэффициент затухания эха (0.0-1.0)
+        rate: частота дискретизации
+        num_echoes: количество повторяющихся эхо
+
+    Returns:
+        сигнал с добавленным эхом
+    """
+    if not samples:
+        return []
+
+    if delay_seconds <= 0:
+        raise ValueError("delay_seconds должно быть > 0")
+    if not (0.0 <= decay <= 1.0):
+        raise ValueError("decay должен быть в диапазоне [0.0, 1.0]")
+    if num_echoes < 1:
+        raise ValueError("num_echoes должно быть >= 1")
+
+    # Вычисляем задержку в сэмплах
+    delay_samples = int(round(delay_seconds * rate))
+    if delay_samples >= len(samples):
+        # Если задержка больше длины сигнала, просто возвращаем оригинал
+        return samples.copy()
+
+    # Создаем копию оригинального сигнала
+    result = samples.copy()
+
+    # Добавляем эхо
+    current_decay = decay
+    for echo_num in range(num_echoes):
+        start_idx = delay_samples * (echo_num + 1)
+
+        # Проверяем, что не выходим за границы
+        if start_idx >= len(result):
+            break
+
+        # Добавляем эхо к результату
+        for i in range(start_idx, len(result)):
+            original_idx = i - start_idx
+            if original_idx < len(samples):
+                result[i] += current_decay * samples[original_idx]
+
+        current_decay *= decay  # каждое следующее эхо слабее
+
+    # Нормализуем результат, чтобы избежать клиппинга
+    if result:
+        peak = max(abs(x) for x in result)
+        if peak > 1.0:
+            scale = 1.0 / peak
+            result = [x * scale for x in result]
+
+    return result

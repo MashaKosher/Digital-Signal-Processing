@@ -20,15 +20,15 @@ def parse_args() -> argparse.Namespace:
         "--freqs",
         type=str,
         default=None,
-        help="Список частот через запятую для полифонии (например: 440,550,660)",
+        help="Список частот через запятую для полифонии (например 440,550,660)",
     )
     parser.add_argument(
         "--poly",
         type=str,
         default=None,
         help=(
-            "Смешивание разных типов: формат 'type:freqs;type:freqs'. "
-            "Пример: sine:440,550,660;saw:330,495 . Для noise частоты не требуются"
+            "Смешивание разных типов: формат type:freqs;type:freqs. "
+            "Пример: sine:440,550,660;saw:330,495. Для noise частоты не требуются"
         ),
     )
     # Модуляция
@@ -37,8 +37,8 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Амплитудная модуляция: формат 'mod_type:mod_freq[:depth]'. "
-            "Пример: --am sine:5:0.8 (depth по умолчанию 1.0)"
+            "Амплитудная модуляция: формат mod_type:mod_freq:depth. "
+            "Пример: --am sine:5:0.8"
         ),
     )
     parser.add_argument(
@@ -46,7 +46,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Частотная модуляция: формат 'mod_type:mod_freq:deviation_hz'. "
+            "Частотная модуляция: формат mod_type:mod_freq:deviation_hz. "
             "Пример: --fm triangle:3:50"
         ),
     )
@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
         "--duty",
         type=float,
         default=50.0,
-        help="Скважность/длительность высокого уровня для pulse, % (или 0..1)",
+        help="Скважность для pulse, в процентах или долях (0..1)",
     )
     parser.add_argument(
         "-t", "--duration", type=float, default=2.0, help="Длительность, секунды"
@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-normalize",
         action="store_true",
-        help="Отключить нормализацию при смешивании нескольких сигналов",
+        help="Отключить нормализацию при смешивании",
     )
     parser.add_argument(
         "-o",
@@ -77,6 +77,16 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Путь к выходному WAV-файлу",
+    )
+    # Эффекты
+    parser.add_argument(
+        "--echo",
+        type=str,
+        default=None,
+        help=(
+            "Добавить эффект эха: формат delay:decay:echoes. "
+            "Пример: --echo 0.3:0.5:2"
+        ),
     )
     return parser.parse_args()
 
@@ -218,10 +228,21 @@ def main() -> None:
             mod_freq = float(parts[1]) if len(parts) > 1 else 1.0
             depth = float(parts[2]) if len(parts) > 2 else 1.0
         except Exception:
-            raise SystemExit("--am формат: mod_type:mod_freq[:depth]")
+            raise SystemExit("--am формат: mod_type:mod_freq:depth")
         # Модулятор в [-1,1]
         mod = signals._generate_modulator(mod_type, mod_freq, duration, rate, duty)
         samples = signals.apply_amplitude_modulation(samples, mod, depth)
+
+    # Применить эффект эха
+    if args.echo:
+        try:
+            parts = [p.strip() for p in args.echo.split(":")]
+            delay = float(parts[0])
+            decay = float(parts[1]) if len(parts) > 1 else 0.5
+            num_echoes = int(parts[2]) if len(parts) > 2 else 3
+        except Exception:
+            raise SystemExit("--echo формат: delay:decay:echoes. Пример: 0.3:0.5:2")
+        samples = signals.apply_echo(samples, delay, decay, rate, num_echoes)
 
     write_wav_mono(outfile, samples, rate)
     print(f"Сохранено: {outfile}")
